@@ -58,7 +58,7 @@ function App() {
       formData.append("image", blob, "drawing.png");
 
       try {
-          const response = await axios.post(`${import.meta.env.SERVER_URL}/process-image`, formData, {
+          const response = await axios.post(`${import.meta.env.VITE_SERVER_URL}/process-image`, formData, {
               headers: { "Content-Type": "multipart/form-data" }
           });
         //   console.log(response)
