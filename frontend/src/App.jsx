@@ -7,6 +7,7 @@ function App() {
   const [result, setResult] = useState(null);
   const [color, setColor] = useState("black");
   const [clicked, setClicked] = useState(false);
+  const [isErasing, setIsErasing] = useState(false);
 
   const clearCanvas = () => {
       const canvas = canvasRef.current;
@@ -18,6 +19,7 @@ function App() {
   const onButtonClick = (color) => {
       setClicked(true);
       setColor(color);
+      setIsErasing(false);
   }
 
   const handleMouseDown = (e) => {
@@ -32,8 +34,13 @@ function App() {
       if (!canvasRef.current.isDrawing) return;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
+      if (isErasing) {
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 10;
+    } else {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+    }
       ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
       ctx.stroke();
   };
@@ -68,6 +75,7 @@ function App() {
               <button onClick={() => onButtonClick("red")} className={`w-5 h-5 bg-red-500 text-white rounded-full hover:scale-150 ${clicked && color === "red" ? "border-2 border-white scale-150" : ""}`}></button>
               <button onClick={() => onButtonClick("blue")} className={`w-5 h-5 bg-blue-500 text-white rounded-full hover:scale-150 ${clicked && color === "blue" ? "border-2 border-white scale-150" : ""}`}></button>
               <button onClick={() => onButtonClick("cyan")} className={`w-5 h-5 bg-cyan-400 text-white rounded-full hover:scale-150 ${clicked && color === "cyan" ? "border-2 border-white scale-150" : ""}`}></button>
+              <button onClick={() => {onButtonClick("white"); setIsErasing(true)}} className={`w-5 h-5 bg-gray-300 text-black rounded ${clicked && color === "white" ? "border-2 border-white scale-150 h-6" : ""}`}>🖌</button>
           </div>
           <canvas 
               ref={canvasRef} 
