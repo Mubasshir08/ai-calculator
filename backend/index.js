@@ -16,7 +16,7 @@ const upload = multer({ dest: "uploads/" });
 // Initialize OpenAI
 // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// with OpenAI
+// OpenAI
 // app.post("/process-image", upload.single("image"), async (req, res) => {
 //     try {
 //         const imagePath = req.file.path;
@@ -43,7 +43,7 @@ const upload = multer({ dest: "uploads/" });
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// with Gemini
+// Gemini
 app.post("/process-image", upload.single("image"), async (req, res) => {
     try {
         const imagePath = req.file.path;
