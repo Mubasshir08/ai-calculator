@@ -1,4 +1,3 @@
-// utils/cropImage.js
 export default function getCroppedImg(imageSrc, pixelCrop) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -29,4 +28,3 @@ export default function getCroppedImg(imageSrc, pixelCrop) {
     image.onerror = reject;
   });
 }
-
