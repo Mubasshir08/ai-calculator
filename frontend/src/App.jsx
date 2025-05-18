@@ -1,5 +1,7 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import Cropper from 'react-easy-crop';
+import getCroppedImg from './utils/cropImage'; // You'll create this
 import './App.css';
 
 function App() {
@@ -10,6 +12,14 @@ function App() {
   const [clicked, setClicked] = useState(false);
   const [isErasing, setIsErasing] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 300, height: 400 });
+  const [loading, setLoading] = useState(false);
+
+  // Cropper state
+  const [imageSrc, setImageSrc] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [showCropper, setShowCropper] = useState(false);
 
   useEffect(() => {
     const updateCanvasSize = () => {
@@ -75,6 +85,7 @@ function App() {
   };
 
   const sendToAI = async () => {
+    setLoading(true);
     const canvas = canvasRef.current;
     const imageData = canvas.toDataURL("image/png");
     const blob = await (await fetch(imageData)).blob();
@@ -82,12 +93,14 @@ function App() {
     formData.append("image", blob, "drawing.png");
 
     try {
-      const response = await axios.post(${import.meta.env.VITE_SERVER_URL}/process-image, formData, {
+      const response = await axios.post(`${import.meta.env.VITE_SERVER_URL}/process-image`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setResult(response.data.result);
     } catch (error) {
       console.error("Error sending image to backend", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,16 +112,35 @@ function App() {
     const file = event.target.files[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append("image", file, "photo.png");
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageSrc(reader.result);
+      setShowCropper(true);
+    };
+    reader.readAsDataURL(file);
+  };
 
+  const onCropComplete = useCallback((_, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const uploadCroppedImage = async () => {
     try {
-      const response = await axios.post(${import.meta.env.VITE_SERVER_URL}/process-image, formData, {
+      setLoading(true);
+      const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels);
+      const formData = new FormData();
+      formData.append("image", croppedImage, "cropped.png");
+
+      const response = await axios.post(`${import.meta.env.VITE_SERVER_URL}/process-image`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       setResult(response.data.result);
     } catch (error) {
-      console.error("Error sending captured photo to backend", error);
+      console.error("Error uploading cropped image", error);
+    } finally {
+      setLoading(false);
+      setShowCropper(false);
     }
   };
 
@@ -117,12 +149,12 @@ function App() {
       <div className="flex gap-2 mt-2 flex-wrap justify-center">
         {['black', 'red', 'blue', 'cyan'].map((col) => (
           <button key={col} onClick={() => onButtonClick(col)}
-            className={w-5 h-5 rounded-full hover:scale-150 ${clicked && color === col ? "border-2 border-white scale-150" : ""}}
+            className={`w-5 h-5 rounded-full hover:scale-150 ${clicked && color === col ? "border-2 border-white scale-150" : ""}`}
             style={{ backgroundColor: col }}>
           </button>
         ))}
         <button onClick={() => { onButtonClick("white"); setIsErasing(true); }}
-          className={w-5 h-5 bg-gray-300 text-black rounded ${clicked && isErasing ? "border-2 border-white scale-150" : ""}}>
+          className={`w-5 h-5 bg-gray-300 text-black rounded ${clicked && isErasing ? "border-2 border-white scale-150" : ""}`}>
           🖌
         </button>
       </div>
@@ -154,10 +186,32 @@ function App() {
         />
       </div>
 
+      {loading && <p className="text-yellow-400 text-lg font-bold animate-pulse">Processing...</p>}
+
       {result && (
         <p className="text-xl text-green-300 font-bold mt-4 text-center whitespace-pre-wrap">
           {result}
         </p>
+      )}
+
+      {showCropper && (
+        <div className="fixed top-0 left-0 w-full h-full bg-black/80 flex flex-col items-center justify-center z-50">
+          <div className="relative w-[90vw] h-[60vh] bg-black">
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={4 / 3}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          </div>
+          <div className="flex gap-4 mt-4">
+            <button onClick={uploadCroppedImage} className="bg-blue-600 text-white px-4 py-2 rounded">Upload</button>
+            <button onClick={() => setShowCropper(false)} className="bg-red-600 text-white px-4 py-2 rounded">Cancel</button>
+          </div>
+        </div>
       )}
     </div>
   );
