@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Cropper from 'react-easy-crop';
-import getCroppedImg from './utils/cropImage'; // You'll create this
+import getCroppedImg from './utils/cropImage'; // helper
 import './App.css';
 
 function App() {
@@ -108,7 +108,7 @@ function App() {
     fileInputRef.current.click();
   };
 
-  const handleImageUpload = async (event) => {
+  const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -125,27 +125,29 @@ function App() {
   }, []);
 
   const uploadCroppedImage = async () => {
-    try {
-      setLoading(true);
-      const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels);
-      const formData = new FormData();
-      formData.append("image", croppedImage, "cropped.png");
+  setShowCropper(false); // Hide the cropper immediately
+  try {
+    setLoading(true);
+    const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels);
+    const formData = new FormData();
+    formData.append("image", croppedImage, "cropped.png");
 
-      const response = await axios.post(`${import.meta.env.VITE_SERVER_URL}/process-image`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+    const response = await axios.post(`${import.meta.env.VITE_SERVER_URL}/process-image`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-      setResult(response.data.result);
-    } catch (error) {
-      console.error("Error uploading cropped image", error);
-    } finally {
-      setLoading(false);
-      setShowCropper(false);
-    }
-  };
+    setResult(response.data.result);
+  } catch (error) {
+    console.error("Error uploading cropped image", error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">
+      {/* Color Buttons */}
       <div className="flex gap-2 mt-2 flex-wrap justify-center">
         {['black', 'red', 'blue', 'cyan'].map((col) => (
           <button key={col} onClick={() => onButtonClick(col)}
@@ -159,6 +161,7 @@ function App() {
         </button>
       </div>
 
+      {/* Canvas */}
       <canvas
         ref={canvasRef}
         width={canvasSize.width}
@@ -172,6 +175,7 @@ function App() {
         onTouchEnd={handleEnd}
       />
 
+      {/* Action Buttons */}
       <div className="flex gap-2 flex-wrap justify-center">
         <button onClick={clearCanvas} className="px-4 py-2 bg-gray-500 text-white rounded">Clear</button>
         <button onClick={sendToAI} className="px-4 py-2 bg-blue-500 text-white rounded">Calculate</button>
@@ -186,14 +190,24 @@ function App() {
         />
       </div>
 
+      {/* Show Re-crop if image was uploaded */}
+      {imageSrc && !showCropper && (
+        <button onClick={() => setShowCropper(true)} className="px-4 py-2 bg-yellow-500 text-white rounded">
+          Re-crop Image
+        </button>
+      )}
+
+      {/* Loading */}
       {loading && <p className="text-yellow-400 text-lg font-bold animate-pulse">Processing...</p>}
 
+      {/* Result */}
       {result && (
         <p className="text-xl text-green-300 font-bold mt-4 text-center whitespace-pre-wrap">
           {result}
         </p>
       )}
 
+      {/* Cropper Modal */}
       {showCropper && (
         <div className="fixed top-0 left-0 w-full h-full bg-black/80 flex flex-col items-center justify-center z-50">
           <div className="relative w-[90vw] h-[60vh] bg-black">
@@ -209,7 +223,11 @@ function App() {
           </div>
           <div className="flex gap-4 mt-4">
             <button onClick={uploadCroppedImage} className="bg-blue-600 text-white px-4 py-2 rounded">Upload</button>
-            <button onClick={() => setShowCropper(false)} className="bg-red-600 text-white px-4 py-2 rounded">Cancel</button>
+            <button onClick={() => {
+              setShowCropper(false);
+              setCrop({ x: 0, y: 0 });
+              setZoom(1);
+            }} className="bg-red-600 text-white px-4 py-2 rounded">Cancel</button>
           </div>
         </div>
       )}
