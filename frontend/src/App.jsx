@@ -4,6 +4,7 @@ import './App.css';
 
 function App() {
   const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [result, setResult] = useState(null);
   const [color, setColor] = useState("black");
   const [clicked, setClicked] = useState(false);
@@ -11,20 +12,16 @@ function App() {
   const [canvasSize, setCanvasSize] = useState({ width: 300, height: 400 });
 
   useEffect(() => {
-    // Adjust canvas size based on screen width
     const updateCanvasSize = () => {
-        if (window.innerWidth > 1024) {
-          // Laptop/Desktop (Width 1000px)
-          setCanvasSize({ width: 1000, height: 400 });
-        } else {
-          // Mobile/Tablet (90% of screen width)
-          setCanvasSize({ width: Math.min(window.innerWidth * 0.9, 600), height: 400 });
-        }
-      };
-    
-      updateCanvasSize(); // Set initial size
-      window.addEventListener("resize", updateCanvasSize);
-      return () => window.removeEventListener("resize", updateCanvasSize);
+      if (window.innerWidth > 1024) {
+        setCanvasSize({ width: 1000, height: 400 });
+      } else {
+        setCanvasSize({ width: Math.min(window.innerWidth * 0.9, 600), height: 400 });
+      }
+    };
+    updateCanvasSize();
+    window.addEventListener("resize", updateCanvasSize);
+    return () => window.removeEventListener("resize", updateCanvasSize);
   }, []);
 
   const clearCanvas = () => {
@@ -34,18 +31,17 @@ function App() {
     setResult(null);
   };
 
-  const onButtonClick = (color) => {
+  const onButtonClick = (col) => {
     setClicked(true);
-    setColor(color);
+    setColor(col);
     setIsErasing(false);
   };
 
   const handleStart = (e) => {
-    e.preventDefault(); // Prevent scrolling when drawing
+    e.preventDefault();
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     const pos = getPosition(e);
-
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y);
     canvas.isDrawing = true;
@@ -54,11 +50,9 @@ function App() {
   const handleMove = (e) => {
     if (!canvasRef.current.isDrawing) return;
     e.preventDefault();
-
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     const pos = getPosition(e);
-
     ctx.strokeStyle = isErasing ? "white" : color;
     ctx.lineWidth = isErasing ? 10 : 3;
     ctx.lineTo(pos.x, pos.y);
@@ -74,7 +68,6 @@ function App() {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
     return {
       x: clientX - rect.left,
       y: clientY - rect.top
@@ -98,6 +91,27 @@ function App() {
     }
   };
 
+  const handleTakePicture = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file, "photo.png");
+
+    try {
+      const response = await axios.post(`${import.meta.env.VITE_SERVER_URL}/process-image`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setResult(response.data.result);
+    } catch (error) {
+      console.error("Error sending captured photo to backend", error);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center gap-4 p-4">
       <div className="flex gap-2 mt-2 flex-wrap justify-center">
@@ -112,14 +126,39 @@ function App() {
           🖌
         </button>
       </div>
-      <canvas ref={canvasRef} width={canvasSize.width} height={canvasSize.height} className="border bg-white"
-        onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd}
-        onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd} />
-      <div className="flex gap-2">
+
+      <canvas
+        ref={canvasRef}
+        width={canvasSize.width}
+        height={canvasSize.height}
+        className="border bg-white"
+        onMouseDown={handleStart}
+        onMouseMove={handleMove}
+        onMouseUp={handleEnd}
+        onTouchStart={handleStart}
+        onTouchMove={handleMove}
+        onTouchEnd={handleEnd}
+      />
+
+      <div className="flex gap-2 flex-wrap justify-center">
         <button onClick={clearCanvas} className="px-4 py-2 bg-gray-500 text-white rounded">Clear</button>
         <button onClick={sendToAI} className="px-4 py-2 bg-blue-500 text-white rounded">Calculate</button>
+        <button onClick={handleTakePicture} className="px-4 py-2 bg-green-600 text-white rounded">Take Picture</button>
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          ref={fileInputRef}
+          onChange={handleImageUpload}
+          style={{ display: 'none' }}
+        />
       </div>
-      {result && <p className="text-xl text-white">{result}</p>}
+
+      {result && (
+        <p className="text-xl text-green-300 font-bold mt-4 text-center whitespace-pre-wrap">
+          {result}
+        </p>
+      )}
     </div>
   );
 }
